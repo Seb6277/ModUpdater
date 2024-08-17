@@ -1,0 +1,6 @@
+venv
+.env
+local
+ftp
+.idea
+.vscode
