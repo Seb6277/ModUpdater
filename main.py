@@ -3,6 +3,7 @@ import json
 import logging
 import hashlib
 import argparse
+from tqdm import tqdm
 from dotenv import load_dotenv
 from ftp_server import FTPClient
 
@@ -19,22 +20,22 @@ def get_md5(file):
         return hashlib.md5(data).hexdigest()
 
 def write_manifest(manifest, folder):
-    with open(f'{folder}/manifest.json', 'w') as f:
+    manifest_file = folder.split('/')[0] + "/manifest.json"
+    with open(manifest_file, 'w') as f:
         json.dump(manifest, f, indent=4)
 
 def create_manifest(folder):
     manifest :dict[str, str] = {}
-    for file in os.listdir(folder):
+    for file in tqdm(os.listdir(f"{folder}/Mods")):
         if file != 'manifest.json':
-            control_sum = get_md5(f'{folder}/{file}')
+            control_sum = get_md5(f'{folder}/Mods/{file}')
             manifest[file] = control_sum
-    logging.debug(manifest)
     write_manifest(manifest, folder)
 
 def check_manifest(folder):
     if not "manifest.json" in os.listdir(folder):
         logging.info('Manifest not found... create it now')
-        create_manifest(folder)
+        create_manifest(f"{folder}/Mods")
 
 def check_differences(local, remote):
     to_update = []
@@ -89,6 +90,8 @@ if __name__ == '__main__':
             delete_file(to_delete)
         if len(to_update) > 0 or len(to_download) > 0:
             update_file(to_update, to_download)
+        ftp_client.close()
     if args.generate:
         create_manifest('ftp')
+
 

@@ -1,4 +1,4 @@
-from ftplib import FTP
+from ftplib import FTP, FTP_TLS, error_perm
 import logging
 import os
 
@@ -7,9 +7,14 @@ class FTPClient:
         self.host = os.getenv('FTP_HOST')
         self.user = os.getenv('FTP_USER')
         self.password = os.getenv('FTP_PASSWD')
+        logging.debug(f"Using user {self.user} on {self.host}")
 
-        self.ftp = FTP(self.host)
-        self.ftp.login(self.user, self.password)
+        try:
+            self.ftp = FTP(self.host)
+            self.ftp.login(self.user, self.password)
+        except error_perm:
+            self.ftp = FTP_TLS(self.host)
+            self.ftp.login(self.user, self.password)
         logging.debug(self.ftp.getwelcome())
 
     def copy_file(self, source, destination, filename):
@@ -25,3 +30,6 @@ class FTPClient:
             logging.error(f"An error occurred: {str(e)}")
         finally:
             os.remove(f'temp_{filename}')
+    
+    def close(self):
+        self.ftp.quit()
