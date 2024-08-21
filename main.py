@@ -70,6 +70,7 @@ if __name__ == '__main__':
     load_dotenv()
     configure_logging()
     parser = argparse.ArgumentParser()
+    parser.add_argument('--mod_dir', type=str, help="Root mod's directory", required=True)
     parser.add_argument('--generate', type=bool, help='Generate manifest file for mods',
                         nargs='?', const=True)
     parser.add_argument('--update', type=bool, help='Update mods', nargs='?', const=True)
@@ -82,7 +83,7 @@ if __name__ == '__main__':
     if args.update:
         ftp_client = FTPClient()
         logging.info('Checking manifest presence...')
-        check_manifest('local')
+        check_manifest(args.mod_dir)
         get_remote_manifest()
         to_update, to_download, to_delete = check_differences('local', 'ftp')
         logging.info(f'{len(to_update)} mod update(s) found')
@@ -94,6 +95,6 @@ if __name__ == '__main__':
             update_file(to_update, to_download)
         ftp_client.close()
     if args.generate:
-        create_manifest('ftp')
+        create_manifest(args.mod_dir)
 
 
