@@ -20,7 +20,7 @@ def get_md5(file):
         return hashlib.md5(data).hexdigest()
 
 def write_manifest(manifest, folder):
-    manifest_file = os.path.join(folder.split('/')[0], "manifest.json")
+    manifest_file = os.path.join(folder, "manifest.json")
     with open(manifest_file, 'w') as f:
         json.dump(manifest, f, indent=4)
 
@@ -29,6 +29,8 @@ def create_manifest(folder):
     manifest = {}
     for root, dirs, files in os.walk(folder):
         relative_root = os.path.relpath(root, folder)
+        if relative_root == ".":
+            relative_root = ""
         for file in tqdm(files):
             if file != 'manifest.json':
                 manifest[os.path.join(relative_root, file)] = get_md5(os.path.join(root, file))
