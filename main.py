@@ -20,29 +20,31 @@ def get_md5(file):
         return hashlib.md5(data).hexdigest()
 
 def write_manifest(manifest, folder):
-    manifest_file = folder.split('/')[0] + "/manifest.json"
+    manifest_file = os.path.join(folder.split('/')[0], "manifest.json")
     with open(manifest_file, 'w') as f:
         json.dump(manifest, f, indent=4)
 
 def create_manifest(folder):
-    manifest :dict[str, str] = {}
-    for file in tqdm(os.listdir(f"{folder}/Mods")):
-        if file != 'manifest.json':
-            control_sum = get_md5(f'{folder}/Mods/{file}')
-            manifest[file] = control_sum
+    logging.info('Generating manifest...')
+    manifest = {}
+    for root, dirs, files in os.walk(folder):
+        relative_root = os.path.relpath(root, folder)
+        for file in tqdm(files):
+            if file != 'manifest.json':
+                manifest[os.path.join(relative_root, file)] = get_md5(os.path.join(root, file))
     write_manifest(manifest, folder)
 
 def check_manifest(folder):
     if not "manifest.json" in os.listdir(folder):
         logging.info('Manifest not found... create it now')
-        create_manifest(f"{folder}/Mods")
+        create_manifest(folder)
 
 def check_differences(local, remote):
     to_update = []
     to_download = []
     to_delete = []
-    local_manifest = json.load(open(f'{local}/manifest.json', 'r'))
-    remote_manifest = json.load(open(f'{remote}/manifest.json', 'r'))
+    local_manifest = json.load(open(os.path.join(local, 'manifest.json'), 'r'))
+    remote_manifest = json.load(open(os.path.join(remote, 'manifest.json'), 'r'))
     for file in local_manifest:
         if file not in remote_manifest:
             to_delete.append(file)
@@ -54,9 +56,9 @@ def check_differences(local, remote):
                 to_update.append(file)
     return to_update, to_download, to_delete
 
-def delete_file(file_list):
+def delete_file(root, file_list):
     for file in file_list:
-        os.remove(f'local/{file}')
+        os.remove(os.path.join(root, file))
 
 def get_remote_manifest():
     pass
@@ -87,7 +89,7 @@ if __name__ == '__main__':
         logging.info(f'{len(to_download)} new mod(s) found')
         logging.info(f'{len(to_delete)} mod to delete found')
         if len(to_delete) > 0:
-            delete_file(to_delete)
+            delete_file('local', to_delete)
         if len(to_update) > 0 or len(to_download) > 0:
             update_file(to_update, to_download)
         ftp_client.close()
