@@ -41,12 +41,12 @@ def check_manifest(folder):
         logging.info('Manifest not found... create it now')
         create_manifest(folder)
 
-def check_differences(local, remote):
+def check_differences(directory):
     to_update = []
     to_download = []
     to_delete = []
-    local_manifest = json.load(open(os.path.join(local, 'manifest.json'), 'r'))
-    remote_manifest = json.load(open(os.path.join(remote, 'manifest.json'), 'r'))
+    local_manifest = json.load(open(os.path.join(directory, 'manifest.json'), 'r'))
+    remote_manifest = json.load(open(os.path.join(directory, 'remote_manifest.json'), 'r'))
     for file in local_manifest:
         if file not in remote_manifest:
             to_delete.append(file)
@@ -61,9 +61,6 @@ def check_differences(local, remote):
 def delete_file(root, file_list):
     for file in file_list:
         os.remove(os.path.join(root, file))
-
-def get_remote_manifest():
-    pass
 
 def update_file(update_list, download_list):
     pass
@@ -86,8 +83,8 @@ if __name__ == '__main__':
         ftp_client = FTPClient()
         logging.info('Checking manifest presence...')
         check_manifest(args.mod_dir)
-        get_remote_manifest()
-        to_update, to_download, to_delete = check_differences('local', 'ftp')
+        ftp_client.get_remote_manifest(destination=args.mod_dir)
+        to_update, to_download, to_delete = check_differences(args.mod_dir)
         logging.info(f'{len(to_update)} mod update(s) found')
         logging.info(f'{len(to_download)} new mod(s) found')
         logging.info(f'{len(to_delete)} mod to delete found')

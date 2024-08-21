@@ -5,8 +5,8 @@ import os
 class FTPClient:
     def __init__(self):
         self.host = os.getenv('FTP_HOST')
-        self.user = os.getenv('FTP_USER')
-        self.password = os.getenv('FTP_PASSWD')
+        self.user = 'anonymous'
+        self.password = 'anonymous@example.com'
         logging.debug(f"Using user {self.user} on {self.host}")
 
         try:
@@ -17,19 +17,41 @@ class FTPClient:
             self.ftp.login(self.user, self.password)
         logging.debug(self.ftp.getwelcome())
 
-    def copy_file(self, source, destination, filename):
+    def download_file(self, remote_dir, filename, local_dir):
+        local_path = os.path.join(local_dir, f"remote_{filename}")
         try:
-            logging.info(f"Starting file copy from {source} to {destination}.")
-            self.ftp.cwd(source)
-            with open(f'temp_{filename}', 'wb') as f:
-                self.ftp.retrbinary(f'RETR {filename}', f.write)
-            self.ftp.cwd(destination)
-            with open(f'temp_{filename}', 'rb') as f:
-                self.ftp.storbinary(f'STOR {filename}', f)
-        except Exception as e:
-            logging.error(f"An error occurred: {str(e)}")
-        finally:
-            os.remove(f'temp_{filename}')
+            logging.debug(f"Starting file download from {remote_dir}/{filename} to {local_path}.")
+
+            # Ensure the local directory exists
+            if not os.path.exists(local_dir):
+                raise Exception(f"Local directory {local_dir} does not exist.")
+
+            # Change to the remote directory
+            try:
+                self.ftp.cwd(remote_dir)
+            except Exception as e:
+                logging.error(f"Failed to change directory to {remote_dir}: {str(e)}")
+                return
+
+            # Download the file
+            try:
+                with open(local_path, 'wb') as local_file:
+                    self.ftp.retrbinary(f'RETR {filename}', local_file.write)
+                logging.info(f"Successfully downloaded {filename} to {local_path}.")
+            except Exception as e:
+                logging.error(f"Failed to retrieve file {filename}: {str(e)}")
+                if os.path.exists(local_path):
+                    os.remove(local_path)  # Clean up partially downloaded file
+                return
+
+        except Exception as overall_exception:
+            logging.error(f"An unexpected error occurred: {str(overall_exception)}")
+
+    def get_remote_manifest(self, destination):
+        self.download_file('/BG3_Mod', 'manifest.json', destination)
+
+    def __del__(self):
+        self.ftp.close()
     
     def close(self):
         self.ftp.quit()
