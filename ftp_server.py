@@ -1,4 +1,5 @@
 from ftplib import FTP, FTP_TLS, error_perm
+from tqdm import tqdm
 import logging
 import os
 
@@ -49,6 +50,23 @@ class FTPClient:
 
     def get_remote_manifest(self, destination):
         self.download_file('/BG3_Mod', 'manifest.json', destination)
+
+    def update_file(self, list_tuple, local_dir):
+        logging.info('Downloading new files...')
+        self.update_and_download(local_dir, list_tuple[0])
+        logging.info('Updating files...')
+        self.update_and_download(local_dir, list_tuple[1])
+
+    def update_and_download(self, local_directory, file_list):
+        for file_path in tqdm(file_list):
+            local_file_path = os.path.join(local_directory, file_path)
+            local_dir = os.path.dirname(local_file_path)
+
+            if not os.path.exists(local_dir):
+                os.makedirs(local_dir)
+
+            with open(local_file_path, 'wb') as local_file:
+                self.ftp.retrbinary(f'RETR {file_path}', local_file.write)
 
     def __del__(self):
         self.ftp.close()

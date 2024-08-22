@@ -62,9 +62,6 @@ def delete_file(root, file_list):
     for file in file_list:
         os.remove(os.path.join(root, file))
 
-def update_file(update_list, download_list):
-    pass
-
 if __name__ == '__main__':
     load_dotenv()
     configure_logging()
@@ -84,14 +81,14 @@ if __name__ == '__main__':
         logging.info('Checking manifest presence...')
         check_manifest(args.mod_dir)
         ftp_client.get_remote_manifest(destination=args.mod_dir)
-        to_update, to_download, to_delete = check_differences(args.mod_dir)
-        logging.info(f'{len(to_update)} mod update(s) found')
-        logging.info(f'{len(to_download)} new mod(s) found')
-        logging.info(f'{len(to_delete)} mod to delete found')
-        if len(to_delete) > 0:
-            delete_file('local', to_delete)
-        if len(to_update) > 0 or len(to_download) > 0:
-            update_file(to_update, to_download)
+        differences = check_differences(args.mod_dir)
+        logging.info(f'{len(differences[0])} mod update(s) found')
+        logging.info(f'{len(differences[1])} new mod(s) found')
+        logging.info(f'{len(differences[2])} mod to delete found')
+        if len(differences[2]) > 0:
+            delete_file('local', differences[2])
+        if len(differences[0]) > 0 or len(differences[1]) > 0:
+            ftp_client.update_file((differences[0], differences[1]), args.mod_dir)
         ftp_client.close()
     if args.generate:
         create_manifest(args.mod_dir)
