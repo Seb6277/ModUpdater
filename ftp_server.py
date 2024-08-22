@@ -59,14 +59,19 @@ class FTPClient:
 
     def update_and_download(self, local_directory, file_list):
         for file_path in tqdm(file_list):
-            local_file_path = os.path.join(local_directory, file_path)
+            local_file_path = os.path.join(local_directory, file_path).replace('\\', '/')
             local_dir = os.path.dirname(local_file_path)
 
-            if not os.path.exists(local_dir):
-                os.makedirs(local_dir)
+            try:
+                if not os.path.exists(local_dir):
+                    os.makedirs(local_dir)
 
-            with open(local_file_path, 'wb') as local_file:
-                self.ftp.retrbinary(f'RETR {file_path}', local_file.write)
+                with open(local_file_path, 'wb') as local_file:
+                    self.ftp.retrbinary(f'RETR {file_path}', local_file.write)
+            except FileNotFoundError as fnf_error:
+                logging.error(f"FileNotFoundError for {file_path}. Details: {fnf_error}")
+            except Exception as e:
+                logging.error(f"An error occurred for {file_path}. Details: {e}")
 
     def __del__(self):
         self.ftp.close()

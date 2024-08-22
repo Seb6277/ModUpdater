@@ -21,7 +21,7 @@ def get_md5(file):
         return hashlib.md5(data).hexdigest()
 
 def write_manifest(manifest, folder):
-    manifest_file = os.path.join(folder, "manifest.json")
+    manifest_file = os.path.join(folder, "manifest.json").replace('\\', '/')
     with open(manifest_file, 'w') as f:
         json.dump(manifest, f, indent=4)
 
@@ -33,8 +33,10 @@ def create_manifest(folder):
         if relative_root == ".":
             relative_root = ""
         for file in tqdm(files):
-            if file != 'manifest.json':
-                manifest[os.path.join(relative_root, file)] = get_md5(os.path.join(root, file))
+            file = file.encode('latin1').decode('utf-8')
+            if file != 'manifest.json' and file != 'remote_manifest.json':
+                logging.debug(os.path.join(relative_root, file).replace('\\', '/'))
+                manifest[os.path.join(relative_root, file).replace('\\', '/')] = get_md5(os.path.join(root, file))
     write_manifest(manifest, folder)
 
 def check_manifest(folder):
@@ -91,7 +93,7 @@ if __name__ == '__main__':
         logging.info(f'{len(differences[1])} new mod(s) found')
         logging.info(f'{len(differences[2])} mod to delete found')
         if len(differences[2]) > 0:
-            delete_file('local', differences[2])
+            delete_file(args.mod_dir, differences[2])
         if len(differences[0]) > 0 or len(differences[1]) > 0:
             ftp_client.update_file((differences[0], differences[1]), args.mod_dir)
         update_manifest(args.mod_dir)
