@@ -3,6 +3,7 @@ import json
 import logging
 import hashlib
 import argparse
+from utils import clean_directories, update_manifest, clean_manifest
 from tqdm import tqdm
 from dotenv import load_dotenv
 from ftp_server import FTPClient
@@ -39,6 +40,10 @@ def create_manifest(folder):
 def check_manifest(folder):
     if not "manifest.json" in os.listdir(folder):
         logging.info('Manifest not found... create it now')
+        create_manifest(folder)
+    else:
+        logging.info('Manifest found... updating it')
+        clean_manifest(folder)
         create_manifest(folder)
 
 def check_differences(directory):
@@ -89,8 +94,10 @@ if __name__ == '__main__':
             delete_file('local', differences[2])
         if len(differences[0]) > 0 or len(differences[1]) > 0:
             ftp_client.update_file((differences[0], differences[1]), args.mod_dir)
+        update_manifest(args.mod_dir)
         ftp_client.close()
     if args.generate:
+        clean_directories(args.mod_dir)
         create_manifest(args.mod_dir)
 
 
