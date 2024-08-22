@@ -28,13 +28,16 @@ def write_manifest(manifest, folder):
 def create_manifest(folder):
     logging.info('Generating manifest...')
     manifest = {}
+    max_length = 0
     for root, dirs, files in os.walk(folder):
         relative_root = os.path.relpath(root, folder)
         if relative_root == ".":
             relative_root = ""
-        for file in tqdm(files):
+        for file in files:
             if file != 'manifest.json' and file != 'remote_manifest.json':
-                logging.debug(os.path.join(relative_root, file).replace('\\', '/'))
+                message = f"Generating sum for {os.path.join(relative_root, file).replace('\\', '/')}"
+                max_length = max(max_length, len(message))
+                print(f"\r{' ' * max_length}\r{message}", end="", flush=True)
                 manifest[os.path.join(relative_root, file).replace('\\', '/')] = get_md5(os.path.join(root, file))
     write_manifest(manifest, folder)
 
