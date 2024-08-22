@@ -3,7 +3,7 @@ import json
 import logging
 import hashlib
 import argparse
-from utils import clean_directories, update_manifest, clean_manifest
+from utils import clean_directories, clean_manifest
 from tqdm import tqdm
 from dotenv import load_dotenv
 from ftp_server import FTPClient
@@ -38,14 +38,17 @@ def create_manifest(folder):
                 manifest[os.path.join(relative_root, file).replace('\\', '/')] = get_md5(os.path.join(root, file))
     write_manifest(manifest, folder)
 
-def check_manifest(folder):
+def check_manifest(folder, force=False):
     if not "manifest.json" in os.listdir(folder):
         logging.info('Manifest not found... create it now')
         create_manifest(folder)
     else:
-        logging.info('Manifest found... updating it')
-        clean_manifest(folder)
-        create_manifest(folder)
+        if force:
+            logging.info('Manifest found... updating it')
+            clean_manifest(folder)
+            create_manifest(folder)
+        else:
+            logging.info('Manifest found... updating it')
 
 def check_differences(directory):
     to_update = []
@@ -68,6 +71,14 @@ def delete_file(root, file_list):
     for file in file_list:
         os.remove(os.path.join(root, file))
 
+def validate(directory):
+    diff = check_differences(directory)
+    if len(diff[0]) > 0 or len(diff[1]) > 0 or len(diff[2]) > 0:
+        logging.info(f'Differences found: {diff}')
+    else:
+        logging.info('No differences found')
+        os.remove(os.path.join(directory, 'remote_manifest.json'))
+
 if __name__ == '__main__':
     load_dotenv()
     configure_logging()
@@ -76,6 +87,7 @@ if __name__ == '__main__':
     parser.add_argument('--generate', type=bool, help='Generate manifest file for mods',
                         nargs='?', const=True)
     parser.add_argument('--update', type=bool, help='Update mods', nargs='?', const=True)
+    parser.add_argument('--force', type=bool, help='Force regenerate local manifest and update', nargs='?', const=True, default=False)
     args = parser.parse_args()
     if args.generate and args.update:
         raise Exception(
@@ -85,7 +97,7 @@ if __name__ == '__main__':
     if args.update:
         ftp_client = FTPClient()
         logging.info('Checking manifest presence...')
-        check_manifest(args.mod_dir)
+        check_manifest(args.mod_dir, force=args.force)
         ftp_client.get_remote_manifest(destination=args.mod_dir)
         differences = check_differences(args.mod_dir)
         logging.info(f'{len(differences[0])} mod update(s) found')
@@ -95,7 +107,8 @@ if __name__ == '__main__':
             delete_file(args.mod_dir, differences[2])
         if len(differences[0]) > 0 or len(differences[1]) > 0:
             ftp_client.update_file((differences[0], differences[1]), args.mod_dir)
-        update_manifest(args.mod_dir)
+        create_manifest(args.mod_dir)
+        validate(args.mod_dir)
         ftp_client.close()
     if args.generate:
         clean_directories(args.mod_dir)
