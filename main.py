@@ -33,7 +33,6 @@ def create_manifest(folder):
         if relative_root == ".":
             relative_root = ""
         for file in tqdm(files):
-            file = file.encode('latin1').decode('utf-8')
             if file != 'manifest.json' and file != 'remote_manifest.json':
                 logging.debug(os.path.join(relative_root, file).replace('\\', '/'))
                 manifest[os.path.join(relative_root, file).replace('\\', '/')] = get_md5(os.path.join(root, file))
