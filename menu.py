@@ -5,7 +5,7 @@ menu=[{
                 'menuTitle': 'About',
                 'name': 'ModUpdater',
                 'description': 'Simple utility for sync with ftp server using checksum',
-                'version': '1.0.0',
+                'version': '1.0.1-alpha',
                 'copyright': '2024',
                 'website': 'https://github.com/Seb6277/ModUpater',
                 'developer': 'https://github.com/Seb6277',
