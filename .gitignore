@@ -7,3 +7,5 @@ ftp
 __pycache__
 *.swp
 update_manifest.sh
+build
+dist
