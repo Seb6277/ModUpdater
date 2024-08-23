@@ -4,8 +4,8 @@ import logging
 import os
 
 class FTPClient:
-    def __init__(self):
-        self.host = os.getenv('FTP_HOST')
+    def __init__(self, host=os.getenv('FTP_HOST')):
+        self.host = host
         self.user = 'anonymous'
         self.password = 'anonymous@example.com'
         logging.debug(f"Using user {self.user} on {self.host}")
@@ -16,6 +16,9 @@ class FTPClient:
         except error_perm:
             self.ftp = FTP_TLS(self.host)
             self.ftp.login(self.user, self.password)
+        except ConnectionRefusedError:
+            logging.error(f"Connection refused by {self.host}")
+            exit()
         logging.debug(self.ftp.getwelcome())
 
     def download_file(self, remote_dir, filename, local_dir):
@@ -73,8 +76,5 @@ class FTPClient:
             except Exception as e:
                 logging.error(f"An error occurred for {file_path}. Details: {e}")
 
-    def __del__(self):
-        self.ftp.close()
-    
     def close(self):
         self.ftp.quit()

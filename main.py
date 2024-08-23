@@ -3,8 +3,9 @@ import json
 import logging
 import hashlib
 import argparse
+from menu import menu
 from utils import clean_directories, clean_manifest
-from tqdm import tqdm
+from gooey import Gooey, GooeyParser
 from dotenv import load_dotenv
 from ftp_server import FTPClient
 
@@ -82,30 +83,25 @@ def validate(directory):
         logging.info('No differences found')
         os.remove(os.path.join(directory, 'remote_manifest.json'))
 
-if __name__ == '__main__':
-    load_dotenv()
-    configure_logging()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--mod_dir', type=str, help="Root mod's directory", required=True)
-    parser.add_argument('--generate', type=bool, help='Generate manifest file for mods',
-                        nargs='?', const=True)
-    parser.add_argument('--update', type=bool, help='Update mods', nargs='?', const=True)
-    parser.add_argument('--force', type=bool, help='Force regenerate local manifest and update', nargs='?', const=True, default=False)
-    args = parser.parse_args()
+
+def process(args):
     if args.generate and args.update:
         raise Exception(
             'Cannot generate remote manifest and update at the same time')
     logging.info(f'Logging set to {logging.getLevelName(logging.root.level)}')
     logging.debug('arguments : ' + str(args))
     if args.update:
-        ftp_client = FTPClient()
+        if args.hostname:
+            ftp_client = FTPClient(args.hostname)
+        else:
+            ftp_client = FTPClient()
         logging.info('Checking manifest presence...')
         check_manifest(args.mod_dir, force=args.force)
         ftp_client.get_remote_manifest(destination=args.mod_dir)
         differences = check_differences(args.mod_dir)
-        logging.info(f'{len(differences[0])} mod update(s) found')
-        logging.info(f'{len(differences[1])} new mod(s) found')
-        logging.info(f'{len(differences[2])} mod to delete found')
+        logging.info(f'{len(differences[0])} file update(s) found')
+        logging.info(f'{len(differences[1])} new file(s) found')
+        logging.info(f'{len(differences[2])} file(s) to delete found')
         if len(differences[2]) > 0:
             delete_file(args.mod_dir, differences[2])
         if len(differences[0]) > 0 or len(differences[1]) > 0:
@@ -116,5 +112,50 @@ if __name__ == '__main__':
     if args.generate:
         clean_directories(args.mod_dir)
         create_manifest(args.mod_dir)
+
+def main():
+    if os.environ.get('NO_GUI') == '0':
+        @Gooey(
+            program_name='Mod Updater',
+            menu=menu,
+            default_size=(800, 600),
+            show_success_modal=True,
+            show_restart_button=False,
+            description='Update files from FTP server'
+        )
+        def run_with_gui():
+            g_parser = GooeyParser()
+            add_arguments(g_parser)
+            add_gui_arguments(g_parser)
+            g_args = g_parser.parse_args()
+            g_args.update = True
+            g_args.generate = False
+            process(g_args)
+        run_with_gui()
+    else:
+        parser = argparse.ArgumentParser()
+        add_arguments(parser)
+        parser.add_argument('--mod_dir', type=str, help="Root mod's directory", required=True)
+        parser.add_argument('--generate', help='Generate manifest file for mods', const=True, action='store_const')
+        parser.add_argument('--update', help='Update mods', const=True, action='store_const')
+        args = parser.parse_args()
+        process(args)
+
+def add_gui_arguments(parser):
+    parser.add_argument(
+        '--hostname',
+        help='FTP server hostname',
+        type=str, default=os.environ.get('FTP_HOSTNAME', 'localhost'), widget='TextField')
+    parser.add_argument('--mod_dir', type=str, help="Root files directory", required=True, widget='DirChooser')
+
+
+def add_arguments(parser):
+    parser.add_argument('--force', help='Force regenerate local manifest and update', const=True,
+                        default=False, action='store_const')
+
+if __name__ == '__main__':
+    load_dotenv()
+    configure_logging()
+    main()
 
 
