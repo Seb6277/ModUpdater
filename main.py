@@ -3,9 +3,7 @@ import json
 import logging
 import hashlib
 import argparse
-from menu import menu
 from utils import clean_directories, clean_manifest
-from gooey import Gooey, GooeyParser
 from dotenv import load_dotenv
 from ftp_server import FTPClient
 
@@ -115,6 +113,8 @@ def process(args):
 
 def main():
     if os.environ.get('NO_GUI') == '0':
+        from gooey import Gooey, GooeyParser
+        from menu import menu
         @Gooey(
             program_name='Mod Updater',
             menu=menu,
