@@ -1,24 +1,51 @@
-from ftplib import FTP, FTP_TLS, error_perm
+import ssl
+from ftplib import FTP, FTP_TLS
 from tqdm import tqdm
 import logging
 import os
 
+
+class FTPS_Client(FTP_TLS):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._prot_p = None
+        self.context = ssl.create_default_context(
+            ssl.Purpose.SERVER_AUTH
+        )
+        self.context.check_hostname = False
+        self.context.verify_mode = ssl.CERT_NONE
+        logging.debug(f"Using TLS context options : {self.context.options}")
+
+    def prot_p(self):
+        self.sendcmd('PBSZ 0')
+        self.sendcmd('PROT P')
+        self._prot_p = True
+
 class FTPClient:
-    def __init__(self, host=os.getenv('FTP_HOST')):
+    def __init__(self, host, username, password, tls):
         self.host = host
-        self.user = 'anonymous'
-        self.password = 'anonymous@example.com'
+        self.user = username
+        self.password = password
+        self.TLS = tls
         logging.debug(f"Using user {self.user} on {self.host}")
+        logging.debug(f"TLS: {self.TLS}")
 
         try:
-            self.ftp = FTP(self.host)
-            self.ftp.login(self.user, self.password)
-        except error_perm:
-            self.ftp = FTP_TLS(self.host)
-            self.ftp.login(self.user, self.password)
+            if not self.TLS:
+                logging.debug(f'Use TLS {self.TLS} connection on {self.host} with user {self.user} and password {self.password}')
+                self.ftp = FTP(self.host)
+                self.ftp.login(self.user, self.password)
+            else:
+                logging.debug(f'Use TLS {self.TLS} connection on {self.host} with user {self.user} and password {self.password}')
+                self.ftp = FTPS_Client()
+                self.ftp.connect(self.host, 21)
+                self.ftp.auth()
+                self.ftp.login(self.user, self.password)
+                self.ftp.prot_p()
+                self.ftp.set_pasv(True)
         except ConnectionRefusedError:
             logging.error(f"Connection refused by {self.host}")
-            exit()
+            exit(500)
         logging.debug(self.ftp.getwelcome())
 
     def download_file(self, remote_dir, filename, local_dir):
@@ -40,8 +67,11 @@ class FTPClient:
             # Download the file
             try:
                 with open(local_path, 'wb') as local_file:
+                    logging.debug(self.ftp)
                     self.ftp.retrbinary(f'RETR {filename}', local_file.write)
                 logging.info(f"Successfully downloaded {filename} to {local_path}.")
+            except ssl.SSLError as e:
+                logging.error(f'SSL Error: ${e}')
             except Exception as e:
                 logging.error(f"Failed to retrieve file {filename}: {str(e)}")
                 if os.path.exists(local_path):

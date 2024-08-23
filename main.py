@@ -4,11 +4,9 @@ import logging
 import hashlib
 import argparse
 from utils import clean_directories, clean_manifest
-from dotenv import load_dotenv
 from ftp_server import FTPClient
 
-def configure_logging():
-    log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+def configure_logging(log_level='INFO'):
     numeric_level = getattr(logging, log_level, logging.INFO)
     logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -89,10 +87,7 @@ def process(args):
     logging.info(f'Logging set to {logging.getLevelName(logging.root.level)}')
     logging.debug('arguments : ' + str(args))
     if args.update:
-        if args.hostname:
-            ftp_client = FTPClient(args.hostname)
-        else:
-            ftp_client = FTPClient()
+        ftp_client = FTPClient(args.hostname, args.username, args.password, args.enable_TLS)
         logging.info('Checking manifest presence...')
         check_manifest(args.mod_dir, force=args.force)
         ftp_client.get_remote_manifest(destination=args.mod_dir)
@@ -130,6 +125,7 @@ def main():
             g_args = g_parser.parse_args()
             g_args.update = True
             g_args.generate = False
+            configure_logging(g_args.log_level)
             process(g_args)
         run_with_gui()
     else:
@@ -138,24 +134,43 @@ def main():
         parser.add_argument('--mod_dir', type=str, help="Root mod's directory", required=True)
         parser.add_argument('--generate', help='Generate manifest file for mods', const=True, action='store_const')
         parser.add_argument('--update', help='Update mods', const=True, action='store_const')
+        parser.add_argument('--log_level', help='Set level of logs', type=str, default='INFO',
+                            choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+        parser.add_argument(
+            '--password',
+            help='FTP server user password',
+            type=str, default='anonymous@exemple.com')
         args = parser.parse_args()
+        configure_logging(args.log_level)
         process(args)
 
 def add_gui_arguments(parser):
-    parser.add_argument(
-        '--hostname',
-        help='FTP server hostname',
-        type=str, default=os.environ.get('FTP_HOSTNAME', 'localhost'), widget='TextField')
     parser.add_argument('--mod_dir', type=str, help="Root files directory", required=True, widget='DirChooser')
+    parser.add_argument('--log_level', help='Set level of logs', type=str, default='INFO',
+                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], widget='Dropdown')
+    parser.add_argument(
+        '--password',
+        help='FTP server user password',
+        type=str, default='anonymous@exemple.com', widget='PasswordField')
 
 
 def add_arguments(parser):
     parser.add_argument('--force', help='Force regenerate local manifest and update', const=True,
                         default=False, action='store_const')
+    parser.add_argument(
+        '--hostname',
+        help='FTP server hostname',
+        type=str, default=os.environ.get('FTP_HOSTNAME', 'localhost'))
+    parser.add_argument(
+        '--username',
+        help='FTP server username',
+        type=str, default='anonymous')
+    parser.add_argument('--enable_TLS', help='Enable TLS if required', const=True,
+                        default=False, action='store_const')
 
 if __name__ == '__main__':
-    load_dotenv()
-    configure_logging()
+    if not 'NO_GUI' in os.environ:
+        os.environ['NO_GUI'] = '0'
     main()
 
 
